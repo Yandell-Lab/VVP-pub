@@ -28,31 +28,19 @@ Note:  This has been built and run on Mac laptops and Linux servers.
 
 To see available parameters of the executables, run with the -h option.  
 
-Before running VVP or VAAST3, a background must be built.  From the VVP directory:
+Before running VVP, a background must be built.  From the VVP directory:
 
 `cd example`
 
 `../build/build_background -i 1KG_cftr_background.recode.vep.vcf.gz -o 1KG.build -b 2500 -v CSQ,4,6,1,15`
 
-The build_background step produces output to stdout for each of the variants in the background vcf file.  It also creates 5 different output files with extensions .bin, .bit, .max, .chr_offsets.txt, .dist.  These files contained information used by VVP and VAAST3.  
+The build_background step produces output to stdout for each of the variants in the background vcf file.  It also creates 5 different output files with extensions .bin, .bit, .max, .chr_offsets.txt, .dist.  These files contained information used by VVP.  
 
 To run prioritize variants using VVP (in the example folder):
 
-`../build/VVP -i target_spiked_simple.vcf.gz -d 1KG.build -v CSQ,4,6,1,15 -o target_spiked.formatted.out 1> target.spiked.vvp.out`
+`../build/VVP -i target_spiked_simple.vcf.gz -d 1KG.build -v CSQ,4,6,1,15 1> target.spiked.vvp.out`
 
-Then target_spiked.formatted.out contains the information necessary to run VAAST3 and target.spiked.vvp.out contains the VVP output for each variant.  This VCF file was spiked with known disease causing homozygous alleles in the gene CFTR, which are readily apparent in the VVP output by the high variant scores.
-
-Finally, to run VAAST3 (in the example folder):
-
-You **MUST** sort the formatted output by transcript:
-
-`sort -k2,2 target_spiked.formatted.out 1> target_spiked.sorted.formatted.out`
-
-Now to run VAAST3:
-
-`../build/VAAST3 -i target_spiked.sorted.formatted.out -d 1KG.build -t 1 -b 2500 -e r`
-
-To stdout you will see a few of the transcripts of CFTR along with their score and p-value (uncorrected).  VAAST3 is meant to be run with one target individual, trios, and quads.
+Then target_spiked.vvp.out contains the vvp output.
 
 ### PREPARE VCF FILE FOR ANALYSIS
 

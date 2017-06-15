@@ -40,7 +40,7 @@ To run prioritize variants using VVP (in the example folder):
 
 `../build/VVP -i target_spiked_simple.vcf.gz -d 1KG.build -v CSQ,4,6,1,15 1> target.spiked.vvp.out`
 
-Then target_spiked.vvp.out contains the vvp output.
+target_spiked.vvp.out contains the vvp output.
 
 ### PREPARE VCF FILE FOR ANALYSIS
 

@@ -20,7 +20,7 @@ In the VVP directory:
 
 `make`
 
-Make will build 3 executables:  build_background, VVP, VAAST3
+Make will build 2 executables:  build_background and VVP
 
 Note:  This has been built and run on Mac laptops and Linux servers.  
 

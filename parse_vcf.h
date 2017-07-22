@@ -11,6 +11,7 @@
 
 #include "vvp_headers.h"
 #include "aa_weight.h"
+#include <gsl/gsl_rng.h>
 
 struct vep_field_info {
     uint8_t gene_index;
@@ -75,6 +76,8 @@ struct variant {
 void initialize_parse_vcf(uint8_t gene_index, uint8_t transcript_index, uint8_t seq_ontology_tag_index, uint8_t amino_acid_change_index, sds annotation_tag_name, int ll_weight_index);
 
 struct variant * parse_vcf_line(sds line, int no_aa_weight);
+
+struct variant * parse_allele_frequency_line(sds line, int no_aa_weight);
 
 void destroy_variant(struct variant * v);
 

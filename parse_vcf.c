@@ -284,6 +284,134 @@ struct variant * parse_vcf_line(sds line, int no_aa_weight){
     return v;
 }
 
+struct variant * parse_allele_frequency_line(sds line, int no_aa_weight){
+
+    //initialize variant struct values as line is parsed
+    struct variant * v = (struct variant *)malloc(sizeof(struct variant));
+    v->chr = NULL;
+    v->bit_offset = 0;
+    sdstrim(line, "\n");
+    
+    //first split line by tab
+    int count = 0;
+    sds * data = sdssplitlen(line, (int)sdslen(line), "\t", 1, &count);
+    
+    if (count < 10) {
+        fprintf(stderr, "%s:\t vcf line has fewer than 10 columns, will skip:\t%s:%s, %s, %s\n", VCF_PROB, data[0], data[1], data[4], data[7]);
+        sdsfreesplitres(data, count);
+        free(v);
+        return NULL;
+    }
+    
+    v->chr = sdsdup(data[0]);
+    v->pos = atoll(data[1]);
+    v->vid = sdsdup(data[2]);
+    v->ref = sdsdup(data[3]);
+    
+    //now find number of alternate alleles, if > 1, then throw error
+    int num_va = 0;
+    sds * variant_alleles = sdssplitlen(data[4], (int)sdslen(data[4]), ",", 1, &num_va);
+    if (num_va > 1) {
+        fprintf(stderr, "FATAL:\t vcf line has >1 alternate alleles.  File needs to be decomposed before processing\n");
+        fprintf(stderr, "%s", line);
+        sdsfreesplitres(variant_alleles, num_va);
+        sdsfreesplitres(data, count);
+        exit(0);
+    }
+    
+    v->var = sdsdup(variant_alleles[0]);
+    sdsfreesplitres(variant_alleles, num_va);
+    //indel indicator
+    if ((sdslen(v->ref) != sdslen(v->var)) || strcmp(v->ref, "-") == 0 || strcmp(v->var, "-") == 0) {
+        v->indel = 1;
+    }
+    
+    //load genotype information
+    
+    v->ni = 0;
+    v->nref = 0;
+    kv_init(v->hets);
+    v->het_indv = sdsempty();
+    kv_init(v->homs);
+    v->hom_indv = sdsempty();
+    kv_init(v->hemi);
+    v->hemi_indv = sdsempty();
+    kv_init(v->het_nocalls);
+    kv_init(v->hom_nocalls);
+    kv_init(v->hemi_nocalls);
+    
+    //load_gt_info(&v, data, count);
+    int total_called = atoi(data[5]);
+    int n_alleles_called = atoi(data[6]);
+    int nocalled_alleles = total_called - n_alleles_called; //number of nocall alleles
+    int n_alleles_alt = atoi(data[7]);
+    int n_hom_indvs = atoi(data[8]);
+    
+    int n_hemi = 0;
+    int n_het = 0;
+    if (strcmp(v->chr, "X") == 0) {
+        n_hemi = atoi(data[9]); //hemizgyous will be the same as the number of male alleles
+        int tmp = n_alleles_alt - ((n_hom_indvs * 2) + n_hemi);
+        n_het = tmp >= 0 ? tmp : 0; //whatever is left will be het
+    }
+    else {
+        n_het = n_alleles_alt - (n_hom_indvs *2); //number of heterozygous alleles -- same as het individuals
+    }
+    
+    
+    int n_hom_alt = n_alleles_alt - (n_het + n_hemi); //number of alleles homozygous for alt allele
+    
+    v->nref = n_alleles_called - (n_hom_alt + n_het + n_hemi);
+    
+    //generate random numbers for the individual indexes
+    gsl_rng_env_setup();
+    gsl_rng * r = gsl_rng_alloc(gsl_rng_taus);
+    
+    int i;
+    for (i = 0; i < (n_hom_alt / 2); i++) {
+        int z = (int)gsl_rng_uniform_int(r, (total_called/2)+1);
+        kv_push(int, v->homs, z);
+    }
+    for (i = 0; i < n_het; i++) {
+        int z = (int)gsl_rng_uniform_int(r, (total_called/2)+1);
+        kv_push(int, v->hets, z);
+    }
+    for (i = 0; i < n_hemi; i++) {
+        int z = (int)gsl_rng_uniform_int(r, (total_called/2)+1);
+        kv_push(int, v->hemi, z);
+    }
+    for (i = 0; i < nocalled_alleles; i++) {
+        int z = (int)gsl_rng_uniform_int(r, (total_called/2)+1);
+        kv_push(int, v->het_nocalls, z);
+    }
+    
+    gsl_rng_free(r);
+    
+    //load annotation and protein information
+    v->gt = NULL;
+    v->phast = -1.0;
+    load_annotation_info(data[10], &v);
+    
+    //add amino acid weights
+    struct gene_transcript * c, * t;
+    HASH_ITER(hh, v->gt, c, t) {
+        struct transcript_anno_info * current, * tmp;
+        HASH_ITER(hh, c->tai, current, tmp) {
+            get_aaw(&current, v->ref, v->var, v->phast);
+            if (no_aa_weight == 1) {
+                current->aaw = 1.0;
+            }
+        }
+    }
+    
+    sdsfreesplitres(data, count);
+    
+    return v;
+
+}
+
+
+
 void destroy_variant(struct variant * v){
     sdsfree(v->chr);
     sdsfree(v->vid);

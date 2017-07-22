@@ -10,6 +10,9 @@
 
 float compute_score(int nb, int nt, int xa, int xu, float aaw, float llw) {
     
+    //nb = nb - nt >= 0 ? nb - nt : 0;
+    //xu = xu - xa >= 0 ? xu - xa : 0;
+    
     int x = xa + xu;
     int n = nb + nt;
     

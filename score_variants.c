@@ -213,7 +213,7 @@ struct variant * parse_score(sds vcf_line){
         v->b_nhom = bvi->nhom;
         v->b_nocall = bvi->nocall;
         v->bit_offset = bvi->bit_offset;
-        score_variant_t_b(v, n_background - bvi->nocall, bvi->nhet + 2*bvi->nhom + bvi->nhemi);
+        score_variant_t_b(v, n_background*2 - bvi->nocall, bvi->nhet + 2*bvi->nhom + bvi->nhemi);
     }
     else {
         v->b_nhemi = 0;
@@ -221,7 +221,7 @@ struct variant * parse_score(sds vcf_line){
         v->b_nhom = 0;
         v->b_nocall = 0;
         v->bit_offset = 0;
-        score_variant_t_b(v, n_background, 0);
+        score_variant_t_b(v, n_background*2, 0);
     }
     
     id_variant_to_string(v);
@@ -259,10 +259,11 @@ void process_vcf_lines(kvec_t(sds) * vcf_lines, struct variant *** variants){
     
 }
 
+/*
 int scale_het(int x){
     float b = 0.055;
     return (int)100.0*(1.0 / (1.0 + exp(b*(10.0 - x))));
-}
+}*/
 
 
 int main(int argc, const char ** argv) {
@@ -363,10 +364,9 @@ int main(int argc, const char ** argv) {
                         struct transcript_anno_info * current, * tmp;
                         HASH_ITER(hh, c->tai, current, tmp) {
                             if (coding_only <= current->coding) {
-                                int scaled_het = scale_het(current->het_vvp);
                                 fprintf(stdout, "%s\t%zu\t%s\t%s\t%s\t%s\t", tv->chr, tv->pos, tv->ref, tv->var, c->gene_name, current->transcript_name);
                                 fprintf(stdout, "%f\t%d\t%zu\t%s\t%zu\t", current->hemi_score, current->hemi_vvp, tv->hemi.n, tv->hemi_indv, tv->hemi_nocalls.n);
-                                fprintf(stdout, "%f\t%d\t%zu\t%s\t%zu\t", current->het_score, scaled_het, tv->hets.n, tv->het_indv, tv->het_nocalls.n);
+                                fprintf(stdout, "%f\t%d\t%zu\t%s\t%zu\t", current->het_score, current->het_vvp, tv->hets.n, tv->het_indv, tv->het_nocalls.n);
                                 fprintf(stdout, "%f\t%d\t%zu\t%s\t%zu\t", current->hom_score, current->hom_vvp, tv->homs.n, tv->hom_indv, tv->hom_nocalls.n);
                                 fprintf(stdout, "%d\t%d\t%f\t", current->coding, indel_ind, current->aaw);
                                 fprintf(stdout, "%d\t%d\t%d\t%d\t", tv->b_nhemi, tv->b_nhet, tv->b_nhom, tv->b_nocall);

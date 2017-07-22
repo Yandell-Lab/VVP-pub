@@ -37,6 +37,7 @@ struct feature_scores{
 
 
 static sds input_vcf;
+static uint8_t input_csv;
 static sds output_prefix;
 static int ncpus;
 static uint8_t indel_only;
@@ -61,6 +62,7 @@ void usage(int exit_code) {
     fprintf(stderr, "* -v    string        string with comma separated annotation components in info field\n");
     fprintf(stderr, "                      Format: <csq>,<gene index>,<transcript index>,<so_tag_index>,<aa_index>\n");
     fprintf(stderr, "                      Example: CSQ,4,6,1,15\n");
+    fprintf(stderr, "-z      None          Input is not vcf, instead it is a specific tab delimited file for use with background without individual genotypes (gnomad)\n");
     fprintf(stderr, "-w      int           Column index (zero based) in annotation tag as extra likelihood weight\n");
     fprintf(stderr, "-n      #             Number of threads to use while parsing, default = 1\n");
     fprintf(stderr, "-x      None          Set to turn off AA scoring -- all AA weights will be set to 1.0\n");
@@ -76,7 +78,7 @@ void parse_command_line(int argc, const char * argv[]) {
     int tmp_count;
     if (argc > 1 && strcmp(argv[1], "-h") == 0)
         usage(0);
-    while ((opt = getopt(argc, argv, "i:o:b:v:n:w:cxd")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:b:v:n:w:cxzd")) != -1) {
         switch (opt) {
             case 'i' :
                 input_vcf = sdsnew(optarg);
@@ -89,6 +91,9 @@ void parse_command_line(int argc, const char * argv[]) {
                 break;
             case 'x' :
                 no_aa_weights = 1;
+                break;
+            case 'z' :
+                input_csv = 1;
                 break;
             case 'w':
                 sig = atoi(optarg);
@@ -177,7 +182,13 @@ void write_chromosome_offsets(char * output_pre, struct chromosome_info * chr_in
 
 struct variant * parse_score(sds vcf_line){
     
-    struct variant * v = parse_vcf_line(vcf_line, no_aa_weights);
+    struct variant * v = NULL;
+    if (input_csv == 0) {
+        v = parse_vcf_line(vcf_line, no_aa_weights);
+    }
+    else {
+        v = parse_allele_frequency_line(vcf_line, no_aa_weights);
+    }
     
     score_variant_b(v);
     
@@ -225,6 +236,7 @@ void write_binary(FILE * bin_output, FILE * bit_out, struct variant * v, struct 
         fwrite(v->chr, sizeof(char), 2, bin_output);
     }
     
+    
     fwrite(&(v->pos), sizeof(int), 1, bin_output);
     fwrite(var_type, sizeof(char), 1, bin_output);
     fwrite(&length, sizeof(int), 1, bin_output);
@@ -235,6 +247,8 @@ void write_binary(FILE * bin_output, FILE * bit_out, struct variant * v, struct 
     int nhemi = (int)kv_size(v->hemi);
     fwrite(&nhemi, sizeof(int), 1, bin_output);
     int nnocall = (int)(kv_size(v->het_nocalls) + kv_size(v->hemi_nocalls) + 2*kv_size(v->hom_nocalls));
+    int total_accounted_allele = nhet + 2*nhom + nhemi + nnocall;
+    nnocall = 2*n_background - total_accounted_allele; //add whatever the difference is from the total accounting to nocall -- this is important when scoring
     fwrite(&nnocall, sizeof(int), 1, bin_output);
     fwrite(&bit_offset, sizeof(uint64_t), 1, bin_output);
     
@@ -299,24 +313,30 @@ void populate_feature_hash(struct feature_scores ** fs, struct variant * v){
             
             //populate variants into coding / noncoding categories
             if (current->coding == 1) {
-                if (current->hemi_score >= 0.0) {
+                if (v->hemi.n > 0 && current->hemi_score >= 0.0) {
+                //if (current->hemi_score >= 0.0) {
                     kv_push(float, tfs->coding, current->hemi_score);
                 }
-                if (current->het_score >= 0.0) {
+                if (v->hets.n > 0 && current->het_score >= 0.0) {
+                //if (current->het_score >= 0.0) {
                     kv_push(float, tfs->coding, current->het_score);
                 }
-                if (current->hom_score >= 0.0) {
+                if (v->homs.n > 0 && current->hom_score >= 0.0) {
+                //if (current->hom_score >= 0) {
                     kv_push(float, tfs->coding, current->hom_score);
                 }
             }
             else {
-                if (current->hemi_score >= 0.0) {
+                if (v->hemi.n > 0 && current->hemi_score >= 0.0) {
+                //if (current->hemi_score >= 0.0) {
                     kv_push(float, tfs->noncoding, current->hemi_score);
                 }
-                if (current->het_score >= 0.0) {
+                if (v->hets.n > 0 && current->het_score >= 0.0) {
+                //if (current->het_score >= 0.0) {
                     kv_push(float, tfs->noncoding, current->het_score);
                 }
-                if (current->hom_score >= 0.0) {
+                if (v->homs.n > 0 && current->hom_score >= 0.0) {
+                //if (current->hom_score >= 0.0) {
                     kv_push(float, tfs->noncoding, current->hom_score);
                 }
             }
@@ -450,6 +470,7 @@ void process_vcf_lines(kvec_t(sds) * vcf_lines, struct variant *** variants){
 
 int main(int argc, const char * argv[]) {
     input_vcf = NULL;
+    input_csv = 0;
     output_prefix = NULL;
     n_background = 0;
     ncpus = 1;

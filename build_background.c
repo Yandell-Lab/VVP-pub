@@ -247,7 +247,7 @@ void write_binary(FILE * bin_output, FILE * bit_out, struct variant * v, struct 
     int nhemi = (int)kv_size(v->hemi);
     fwrite(&nhemi, sizeof(int), 1, bin_output);
     int nnocall = (int)(kv_size(v->het_nocalls) + kv_size(v->hemi_nocalls) + 2*kv_size(v->hom_nocalls));
-    int total_accounted_allele = nhet + 2*nhom + nhemi + nnocall;
+    int total_accounted_allele = nhet + 2*nhom + nhemi + nnocall + v->nref;
     nnocall = 2*n_background - total_accounted_allele; //add whatever the difference is from the total accounting to nocall -- this is important when scoring
     fwrite(&nnocall, sizeof(int), 1, bin_output);
     fwrite(&bit_offset, sizeof(uint64_t), 1, bin_output);

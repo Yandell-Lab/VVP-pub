@@ -49,7 +49,7 @@ The VVP pipeline does not support mulitallelic lines, these must first be decomp
 **Mandatory** preprocessing of a vcf file includes **multiallelic decomposition and VEP annotation**.  It is important to decompose **BEFORE** annnotating because of potential annotation collisions.  Our recommended steps are to use vt to decompose and normalize variants followed by VEP annotation.  No special options in VEP are required for the variant annotation.  Testing has been done with VEP v82.    
 
 ## VVP BACKGROUND
-A prebuilt background based on gnomAD for use with VVP can be downloaded here (2.5GB): https://s3-us-west-2.amazonaws.com/gnomad-vvp-background/gnomad.062717.build.tar.gz
+A prebuilt background based on gnomAD (http://gnomad.broadinstitute.org/) for use with VVP can be downloaded here (2.5GB): https://s3-us-west-2.amazonaws.com/gnomad-vvp-background/gnomad.062717.build.tar.gz
 
 
 

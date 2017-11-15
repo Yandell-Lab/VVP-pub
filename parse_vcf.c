@@ -96,6 +96,35 @@ void load_gt_info(struct variant ** v, sds * data, int data_len){
     }
 }
 
+void get_bcsq_aa_change(sds aa_tag, struct transcript_anno_info ** ttai){
+    
+    if (sdslen(aa_tag) < 1) {
+        return;
+    }
+    int aas = 0;
+    sds * aa = sdssplitlen(aa_tag, (int)sdslen(aa_tag), ">", 1, &aas);
+    if (aas > 1) {
+        //(*ttai)->pref = sdsdup(aa[0]);
+        //(*ttai)->pvar = sdsdup(aa[1]);
+        size_t i;
+        for (i = 0; i < sdslen(aa[0]); i++) {
+            if (isdigit(aa[0][i]) == 0) {
+                (*ttai)->pref = sdsnewlen(aa[0]+i, sdslen(aa[0]) - i);
+                break;
+            }
+        }
+        
+        for (i = 0; i < sdslen(aa[1]); i++) {
+            if (isdigit(aa[1][i]) == 0) {
+                (*ttai)->pvar = sdsnewlen(aa[1]+i, sdslen(aa[1]) - i);
+                break;
+            }
+        }
+    }
+    sdsfreesplitres(aa, aas);
+}
+
+
 void get_aa_change(sds aa_tag, struct transcript_anno_info ** ttai){
     
     if (sdslen(aa_tag) < 1) {
@@ -151,16 +180,23 @@ void check_add_gene_transcript_tags(sds gene_name, sds transcript_name, sds anno
         ttai->coding = 0;
         ttai->pref = NULL;
         ttai->pvar = NULL;
-        get_aa_change(aa_tag, &ttai); //get aa weight
+        if (strncmp(vfi.annotation_tag_name, "BCSQ", 4) == 0) {
+            get_bcsq_aa_change(aa_tag, &ttai);
+        }
+        else {
+            get_aa_change(aa_tag, &ttai); //get aa weight
+        }
         
         kv_init(ttai->anno_tags); //initialize and add annotation tags
-        int tags = 0;
-        sds * anno_tags = sdssplitlen(annotation_tags, (int)sdslen(annotation_tags), "&", 1, &tags);
-        int i;
-        for (i=0; i < tags; i++) {
-            kv_push(sds, ttai->anno_tags, sdsdup(anno_tags[i]));
+        if (annotation_tags != NULL) {
+            int tags = 0;
+            sds * anno_tags = sdssplitlen(annotation_tags, (int)sdslen(annotation_tags), "&", 1, &tags);
+            int i;
+            for (i=0; i < tags; i++) {
+                kv_push(sds, ttai->anno_tags, sdsdup(anno_tags[i]));
+            }
+            sdsfreesplitres(anno_tags, tags);
         }
-        sdsfreesplitres(anno_tags, tags);
         
         HASH_ADD_STR(tgt->tai, transcript_name, ttai);
     }
@@ -185,13 +221,18 @@ void load_annotation_info(sds info_field, struct variant ** v){
                 sds * annotations = sdssplitlen(tag_data[1], (int)sdslen(tag_data[1]), ",", 1, &n_annotations);
                 int j;
                 for (j = 0; j < n_annotations; j++) {
+                    //fprintf(stderr, "%s\t%d\t%s\n", (*v)->vid, j, annotations[j]);
                     int pieces = 0;
                     sds * anno_pieces = sdssplitlen(annotations[j], (int)sdslen(annotations[j]), "|", 1, &pieces);
                     float ll_weight = -1.0;
                     if (vfi.ll_weight_index >= 0) {
                         ll_weight = atof(anno_pieces[vfi.ll_weight_index]);
                     }
-                    check_add_gene_transcript_tags(anno_pieces[vfi.gene_index], anno_pieces[vfi.transcript_index], anno_pieces[vfi.seq_ontology_tag_index], anno_pieces[vfi.amino_acid_change_index], ll_weight, v);
+                    //fprintf(stderr, "%d\n", tag_count);
+                    //assert(tag_count > vfi.gene_index && tag_count > vfi.transcript_index && tag_count > vfi.seq_ontology_tag_index);
+                    sds tmp_empty = sdsempty();
+                    check_add_gene_transcript_tags(pieces > vfi.gene_index ? anno_pieces[vfi.gene_index] : tmp_empty, pieces > vfi.transcript_index ? anno_pieces[vfi.transcript_index] : tmp_empty, pieces > vfi.seq_ontology_tag_index ? anno_pieces[vfi.seq_ontology_tag_index] : tmp_empty, pieces > vfi.amino_acid_change_index ? anno_pieces[vfi.amino_acid_change_index] : tmp_empty, ll_weight, v);
+                    sdsfree(tmp_empty);
                     sdsfreesplitres(anno_pieces, pieces);
                 }
                 sdsfreesplitres(annotations, n_annotations);

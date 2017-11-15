@@ -8,7 +8,7 @@
 
 #include "score_variant.h"
 
-float compute_score(int nb, int nt, int xa, int xu, float aaw, float llw) {
+float compute_score(int nb, int nt, int xa, int xu, float aaw, float llw, int no_allele_frequency) {
     
     //nb = nb - nt >= 0 ? nb - nt : 0;
     //xu = xu - xa >= 0 ? xu - xa : 0;
@@ -103,8 +103,9 @@ float compute_score(int nb, int nt, int xa, int xu, float aaw, float llw) {
     
     float numerator = x*plog + (n-x)*iplog;
     float denominator = xu*pulog + (nb - xu)*ipulog + xa*palog + (nt - xa)*ipalog;
-    float score = -2.0*(log_llw + aalog + (numerator - denominator));
-    if (score < 0.0) {
+    float diff = no_allele_frequency == 0 ? (numerator - denominator) : 0.0;
+    float score = -2.0*(log_llw + aalog + diff);
+    if (score <= 0.0) {
         return 0.0;
     }
     
@@ -112,7 +113,7 @@ float compute_score(int nb, int nt, int xa, int xu, float aaw, float llw) {
 
 }
 
-void score_variant_b(struct variant * v){
+void score_variant_b(struct variant * v, int no_allele_frequency){
     
     int nb = v->nref + v->hemi.n + v->hets.n + 2*(v->homs.n);
     int xu = nb - v->nref;
@@ -121,22 +122,22 @@ void score_variant_b(struct variant * v){
     HASH_ITER(hh, v->gt, c, t) {
         struct transcript_anno_info * current, * tmp;
         HASH_ITER(hh, c->tai, current, tmp) {
-            current->hemi_score = compute_score(nb, 1, 1, xu, current->aaw, current->llw);
-            current->het_score = compute_score(nb, 2, 1, xu, current->aaw, current->llw);
-            current->hom_score = compute_score(nb, 2, 2, xu, current->aaw, current->llw);
+            current->hemi_score = compute_score(nb, 1, 1, xu, current->aaw, current->llw, no_allele_frequency);
+            current->het_score = compute_score(nb, 2, 1, xu, current->aaw, current->llw, no_allele_frequency);
+            current->hom_score = compute_score(nb, 2, 2, xu, current->aaw, current->llw, no_allele_frequency);
         }
     }
 }
 
-void score_variant_t_b(struct variant * v, int nb, int xu){
+void score_variant_t_b(struct variant * v, int nb, int xu, int no_allele_frequency){
     
     struct gene_transcript * c, * t;
     HASH_ITER(hh, v->gt, c, t) {
         struct transcript_anno_info * current, * tmp;
         HASH_ITER(hh, c->tai, current, tmp) {
-            current->hemi_score = compute_score(nb, 1, 1, xu, current->aaw, current->llw);
-            current->het_score = compute_score(nb, 2, 1, xu, current->aaw, current->llw);
-            current->hom_score = compute_score(nb, 2, 2, xu, current->aaw, current->llw);
+            current->hemi_score = compute_score(nb, 1, 1, xu, current->aaw, current->llw, no_allele_frequency);
+            current->het_score = compute_score(nb, 2, 1, xu, current->aaw, current->llw, no_allele_frequency);
+            current->hom_score = compute_score(nb, 2, 2, xu, current->aaw, current->llw, no_allele_frequency);
         }
     }
 }

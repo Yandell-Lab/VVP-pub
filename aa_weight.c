@@ -71,7 +71,9 @@ void get_aaw(struct transcript_anno_info ** ttai, sds ref, sds var, float phast)
     }
     
     //check for non-synonymous change
-    if (strcmp((*ttai)->pref, (*ttai)->pvar) != 0) {
+    size_t tmpl_pref = sdslen((*ttai)->pref);
+    size_t tmpl_pvar = sdslen((*ttai)->pvar);
+    if (strncmp((*ttai)->pref, (*ttai)->pvar, tmpl_pref < tmpl_pvar ? tmpl_pref : tmpl_pvar) != 0 || tmpl_pref != tmpl_pvar) {
         
         (*ttai)->coding = 1;
         int diff = abs((int)sdslen(ref) - (int)sdslen(var));

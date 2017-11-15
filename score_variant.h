@@ -12,8 +12,8 @@
 #include "vvp_headers.h"
 #include "parse_vcf.h"
 
-void score_variant_b(struct variant * v);
-void score_variant_t_b(struct variant * v, int nb, int xu); //nb is with nocalls taken into account, xu is the background allele count
+void score_variant_b(struct variant * v, int no_allele_frequency);
+void score_variant_t_b(struct variant * v, int nb, int xu, int no_allele_frequency); //nb is with nocalls taken into account, xu is the background allele count
 
 #endif /* defined(__vcf_parser__score_variant__) */
 

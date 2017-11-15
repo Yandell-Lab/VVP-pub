@@ -43,6 +43,7 @@ static int ncpus;
 static uint8_t indel_only;
 static uint8_t coding_only;
 static int no_aa_weights;
+static int no_allele_frequency;
 static int n_background;
 static uint64_t byte_offset;
 static uint64_t bit_offset;
@@ -66,6 +67,7 @@ void usage(int exit_code) {
     fprintf(stderr, "-w      int           Column index (zero based) in annotation tag as extra likelihood weight\n");
     fprintf(stderr, "-n      #             Number of threads to use while parsing, default = 1\n");
     fprintf(stderr, "-x      None          Set to turn off AA scoring -- all AA weights will be set to 1.0\n");
+    fprintf(stderr, "-f      None          Set to not use allele frequency when scoring (Only AA weights will be used)\n");
     fprintf(stderr, "-d      None          Set to ignore indels.  Default is to use indels\n");
     fprintf(stderr, "-c      None          Set to ignore non-coding variants.  Default is to use non-coding variants.\n\n");
     exit(exit_code);
@@ -78,7 +80,7 @@ void parse_command_line(int argc, const char * argv[]) {
     int tmp_count;
     if (argc > 1 && strcmp(argv[1], "-h") == 0)
         usage(0);
-    while ((opt = getopt(argc, argv, "i:o:b:v:n:w:cxzd")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:b:v:n:w:cxzdf")) != -1) {
         switch (opt) {
             case 'i' :
                 input_vcf = sdsnew(optarg);
@@ -91,6 +93,9 @@ void parse_command_line(int argc, const char * argv[]) {
                 break;
             case 'x' :
                 no_aa_weights = 1;
+                break;
+            case 'f' :
+                no_allele_frequency = 1;
                 break;
             case 'z' :
                 input_csv = 1;
@@ -190,7 +195,7 @@ struct variant * parse_score(sds vcf_line){
         v = parse_allele_frequency_line(vcf_line, no_aa_weights);
     }
     
-    score_variant_b(v);
+    score_variant_b(v, no_allele_frequency);
     
     return v;
 }
@@ -475,6 +480,7 @@ int main(int argc, const char * argv[]) {
     n_background = 0;
     ncpus = 1;
     no_aa_weights = 0;
+    no_allele_frequency = 0;
     indel_only = 0;
     coding_only = 0;
     byte_offset = 0;

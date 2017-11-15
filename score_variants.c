@@ -12,7 +12,7 @@
 #include "vvp_lookup.h"
 #include "score_variant.h"
 
-#define WORK_SIZE 1000000
+#define WORK_SIZE 100000
 
 static sds input_vcf;
 static sds db_prefix;
@@ -21,6 +21,7 @@ static int ncpus;
 static int snv_only;
 static int coding_only;
 static int no_aa_weights;
+static int no_allele_frequency;
 static sds anno_tag_name;
 static uint8_t gene_index;
 static uint8_t transcript_index;
@@ -44,8 +45,9 @@ void usage(int exit_code) {
     fprintf(stderr, "-n      #             Number of threads to use, default = 1\n");
     fprintf(stderr, "-w      int           Column index (zero based) in annotation tag as extra likelihood weight\n");
     fprintf(stderr, "-x      None          Set to turn off AA scoring -- all AA weights will be set to 1.0\n");
-    fprintf(stderr, "-l      flag          Set to ignore indels.  Default is to score indels\n");
-    fprintf(stderr, "-c      flag          Set to ignore non-coding variants.  Default is to score non-coding variants.\n\n");
+    fprintf(stderr, "-f      None          Set to not use allele frequency when scoring (Only AA weights will be used)\n");
+    fprintf(stderr, "-l      None          Set to ignore indels.  Default is to score indels\n");
+    fprintf(stderr, "-c      None          Set to ignore non-coding variants.  Default is to score non-coding variants.\n\n");
     exit(exit_code);
 }
 
@@ -56,7 +58,7 @@ void parse_command_line(int argc, const char * argv[]) {
     int tmp_count;
     if (argc > 1 && strcmp(argv[1], "-h") == 0)
         usage(0);
-    while ((opt = getopt(argc, argv, "i:d:v:o:n:w:cxl")) != -1) {
+    while ((opt = getopt(argc, argv, "i:d:v:o:n:w:cxlf")) != -1) {
         switch (opt) {
             case 'i' :
                 input_vcf = sdsnew(optarg);
@@ -90,6 +92,9 @@ void parse_command_line(int argc, const char * argv[]) {
                 break;
             case 'x' :
                 no_aa_weights = 1;
+                break;
+            case 'f' :
+                no_allele_frequency = 1;
                 break;
             case 'c' :
                 coding_only = 1;
@@ -179,13 +184,29 @@ void id_variant_to_string(struct variant * v){
     
     for (i = 0; i < n_indv; i++) {
         if (i < v->hemi.n) {
-            v->hemi_indv = sdscatprintf(v->hemi_indv, "%d,", kv_A(v->hemi, i));
+            if (i < (v->hemi.n - 1)) {
+                v->hemi_indv = sdscatprintf(v->hemi_indv, "%d,", kv_A(v->hemi, i));
+            }
+            else {
+                v->hemi_indv = sdscatprintf(v->hemi_indv, "%d", kv_A(v->hemi, i));
+            }
+            
         }
         if (i < v->hets.n) {
-            v->het_indv = sdscatprintf(v->het_indv, "%d,", kv_A(v->hets, i));
+            if (i < (v->hets.n - 1)) {
+                v->het_indv = sdscatprintf(v->het_indv, "%d,", kv_A(v->hets, i));
+            }
+            else {
+                v->het_indv = sdscatprintf(v->het_indv, "%d", kv_A(v->hets, i));
+            }
         }
         if (i < v->homs.n) {
-            v->hom_indv = sdscatprintf(v->hom_indv, "%d,", kv_A(v->homs, i));
+            if (i < (v->homs.n - 1)) {
+                v->hom_indv = sdscatprintf(v->hom_indv, "%d,", kv_A(v->homs, i));
+            }
+            else {
+                v->hom_indv = sdscatprintf(v->hom_indv, "%d", kv_A(v->homs, i));
+            }
         }
     }
     
@@ -213,7 +234,7 @@ struct variant * parse_score(sds vcf_line){
         v->b_nhom = bvi->nhom;
         v->b_nocall = bvi->nocall;
         v->bit_offset = bvi->bit_offset;
-        score_variant_t_b(v, n_background*2 - bvi->nocall, bvi->nhet + 2*bvi->nhom + bvi->nhemi);
+        score_variant_t_b(v, n_background*2 - bvi->nocall, bvi->nhet + 2*bvi->nhom + bvi->nhemi, no_allele_frequency);
     }
     else {
         v->b_nhemi = 0;
@@ -221,7 +242,7 @@ struct variant * parse_score(sds vcf_line){
         v->b_nhom = 0;
         v->b_nocall = 0;
         v->bit_offset = 0;
-        score_variant_t_b(v, n_background*2, 0);
+        score_variant_t_b(v, n_background*2, 0, no_allele_frequency);
     }
     
     id_variant_to_string(v);
@@ -278,6 +299,7 @@ int main(int argc, const char ** argv) {
     output = NULL;
     ncpus = 1;
     no_aa_weights = 0;
+    no_allele_frequency = 0;
     snv_only = 0;
     coding_only = 0;
     n_background = 0;
@@ -396,7 +418,7 @@ int main(int argc, const char ** argv) {
     kv_destroy(vcf_lines);
     free(buffer);
     
-    if (output != NULL) {
+    /*if (output != NULL) {
         fprintf(stderr, "\nsorting and prepping formatted output for burden calculations (stdout ready for processing)...");
         //prep formatted output file for burden calculations; only works on unix systems
         sds sort_command = sdsnew("sort -k2,2 ");
@@ -409,7 +431,7 @@ int main(int argc, const char ** argv) {
         system(mv_command);
         fprintf(stderr, "done\n");
         sdsfree(mv_command);
-    }
+    }*/
     
     
     

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -lz -lm -O3 -lgsl -lgslcblas #-fopenmp #-Wall
+CFLAGS = -lz -lm -O3 -lgsl -lgslcblas -fopenmp #-Wall
 TARGETS = build_background VVP
 
 all: $(TARGETS)

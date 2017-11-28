@@ -11,7 +11,7 @@ VVP: aa_weight.o bit_array.o score_variant.o parse_vcf.o sds.o vvp_lookup.o sear
 	$(CC) $(CFLAGS) aa_weight.o bit_array.o score_variant.o parse_vcf.o sds.o vvp_lookup.o search_binary_bkgrnd.o score_variants.o -o $@ 
 
 .c.o:
-	$(CC) $(CPPFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f *.o
